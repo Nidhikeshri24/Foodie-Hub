@@ -77,156 +77,59 @@ window.addEventListener("scroll", function () {
   }
 });
 
-/**
- * Fetch dish pairings
- */
-document.getElementById('dishSelect').addEventListener('change', function () {
-  const dishName = this.value;
-  fetchPairings(dishName);
+// Food Pairing suggestion
+
+dishSelect.addEventListener('change', function () {
+  const selectedDish = dishSelect.value;
+  let suggestions = [];
+
+  if (selectedDish === 'Pizza') {
+    suggestions = ['Garlic Bread', 'Salad', 'Red Wine'];
+  } else if (selectedDish === 'Burger') {
+    suggestions = ['Fries', 'Coleslaw', 'Beer'];
+  } else {
+    suggestions = ['No suggestions available.'];
+  }
+
+  suggestionsList.innerHTML = suggestions.map(item => `<li>${item}</li>`).join('');
+});
+// Highlight selected pairing item
+document.getElementById('suggestionsList').addEventListener('click', function (e) {
+  if (e.target && e.target.nodeName === 'LI') {
+    // Remove 'selected' class from all list items
+    const items = document.querySelectorAll('#suggestionsList li');
+    items.forEach(item => item.classList.remove('selected'));
+
+    // Add 'selected' class to the clicked item
+    e.target.classList.add('selected');
+  }
+});
+let selectedPairing = null; // globally store selected item
+
+document.getElementById('suggestionsList').addEventListener('click', function (e) {
+  if (e.target && e.target.nodeName === 'LI') {
+    // Remove old selection
+    const items = document.querySelectorAll('#suggestionsList li');
+    items.forEach(item => item.classList.remove('selected'));
+
+    // Add new selection
+    e.target.classList.add('selected');
+    selectedPairing = e.target.textContent; // store selected item
+
+    // Show button
+    document.getElementById('placeOrderBtn').style.display = 'inline-block';
+    document.getElementById('orderMessage').textContent = ''; // clear old message
+  }
 });
 
-function fetchPairings(dishName) {
-  if (!dishName) {
-    return; // Exit if no dish is selected
-  }
+document.getElementById('placeOrderBtn').addEventListener('click', function () {
+  const dish = document.getElementById('dishSelect').value;
+  const message = `✅ Order placed for ${dish} with ${selectedPairing}!`;
 
-  const encodedDishName = encodeURIComponent(dishName); // To handle special characters
-  const suggestionsList = document.getElementById('suggestionsList');
-  suggestionsList.innerHTML = ''; // Clear previous suggestions
+  document.getElementById('orderMessage').textContent = message;
 
-  // Show loading indicator
-  const loadingLi = document.createElement('li');
-  loadingLi.textContent = 'Loading pairings...';
-  suggestionsList.appendChild(loadingLi);
-
-  // Make the API call to fetch pairings
-  fetch(`http://127.0.0.1:5000/api/pairings/${encodedDishName}`)
-    .then(response => response.json())
-    .then(data => {
-      suggestionsList.innerHTML = ''; // Clear previous suggestions
-
-      if (data.pairings && data.pairings.length > 0) {
-        data.pairings.forEach(pairing => {
-          const li = document.createElement('li');
-          li.textContent = `${pairing.pairing_type}: ${pairing.pairing_name}`;
-          suggestionsList.appendChild(li);
-        });
-      } else {
-        const li = document.createElement('li');
-        li.textContent = 'No pairings found.';
-        suggestionsList.appendChild(li);
-      }
-    })
-    .catch(error => {
-      console.error('Error fetching pairings:', error);
-      suggestionsList.innerHTML = ''; // Clear previous suggestions
-      const li = document.createElement('li');
-      li.textContent = 'An error occurred while fetching pairings.';
-      suggestionsList.appendChild(li);
-    });
-}
-
-/**
- * Order Placement - Submit order data to backend
- */
-function placeOrder(orderData) {
-  fetch('http://127.0.0.1:5000/api/place_order', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(orderData) // Send order data
-  })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        console.log('Order placed successfully', data);
-      } else {
-        console.log('Failed to place order', data.message);
-      }
-    })
-    .catch(error => {
-      console.error('Error placing order:', error);
-    });
-}
-
-/**
- * Check Order Status - Fetch order status from backend
- */
-function checkOrderStatus(orderId) {
-  fetch(`http://127.0.0.1:5000/api/order_status/${orderId}`)
-    .then(response => response.json())
-    .then(data => {
-      if (data.status) {
-        console.log('Order Status:', data.status);
-      } else {
-        console.log('Failed to fetch order status');
-      }
-    })
-    .catch(error => {
-      console.error('Error fetching order status:', error);
-    });
-}
-
-/**
- * Reservation Booking - Book reservation via API
- */
-function submitReservation() {
-  // Get form data
-  const reservationData = {
-    customer_name: document.getElementById('full_name').value,
-    reservation_time: document.getElementById('booking_date').value,
-    num_people: document.getElementById('total_person').value,
-    email_address: document.getElementById('email_address').value,  // Include email
-    message: document.getElementById('message').value               // Include message
-  };
-  
-
-  // Make sure all required fields are filled
-  if (!reservationData.customer_name || !reservationData.reservation_time || !reservationData.num_people) {
-    alert('Please fill all fields.');
-    return;
-  }
-
-  // Send the reservation data via POST request to Flask
-  fetch('http://127.0.0.1:5000/api/reservation', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(reservationData)
-  })
-    .then(response => response.json())
-    .then(data => {
-      if (data.message === "Reservation booked successfully!") {
-        showReservationConfirmation();
-      } else {
-        showReservationError(data.message);
-      }
-    })
-    .catch(error => {
-      console.error('Error booking reservation:', error);
-      showReservationError("An error occurred while booking the reservation.");
-    });
-}
-
-/**
- * Reservation Success - Show Confirmation Message
- */
-function showReservationConfirmation() {
-  const confirmationMessage = document.getElementById("confirmationMessage");
-  confirmationMessage.innerHTML = "<p>Your reservation has been booked successfully!</p>";
-  confirmationMessage.style.display = "block";
-  
-  // Optionally reset the form
-  document.getElementById("reservationForm").reset();
-}
-
-/**
- * Reservation Error - Show Error Message
- */
-function showReservationError(errorMessage) {
-  const confirmationMessage = document.getElementById("confirmationMessage");
-  confirmationMessage.innerHTML = `<p>Failed to book reservation: ${errorMessage}</p>`;
-  confirmationMessage.style.display = "block";
-}
+  // Optional: Reset selection
+  document.getElementById('placeOrderBtn').style.display = 'none';
+  const items = document.querySelectorAll('#suggestionsList li');
+  items.forEach(item => item.classList.remove('selected'));
+});
